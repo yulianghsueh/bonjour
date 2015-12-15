@@ -133,7 +133,6 @@ func newClient(iface *net.Interface) (*client, error) {
 
 // Start listeners and waits for the shutdown signal from exit channel
 func (c *client) mainloop(params *LookupParams){
-	fmt.Println("mainloop")
 	// start listening for responses
 	msgCh := make(chan *dns.Msg, 32)
 	if c.ipv4conn != nil {
