@@ -9,13 +9,17 @@ import (
 
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
-	"github.com/miekg/dns"
+	"github.com/yulianghsueh/dns"
 )
 
 // Main client data structure to run browse/lookup queries
 type Resolver struct {
 	c    *client
 	Exit chan<- bool
+}
+
+type BonjourQuestion struct {
+	Questions []dns.Question
 }
 
 // Resolver structure constructor
@@ -28,20 +32,14 @@ func NewResolver(iface *net.Interface) (*Resolver, error) {
 }
 
 // Browse for all services of a fiven type in a given domain
-func (r *Resolver) Browse(service, domain string, entries chan<- *ServiceEntry) error {
+func (r *Resolver) Browse(service, domain string, questions chan<- *BonjourQuestion) error {
 	params := defaultParams(service)
 	if domain != "" {
 		params.Domain = domain
 	}
-	params.Entries = entries
+	params.Questions = questions
 
 	go r.c.mainloop(params)
-
-	err := r.c.query(params)
-	if err != nil {
-		r.Exit <- true
-		return err
-	}
 
 	return nil
 }
@@ -68,7 +66,7 @@ func (r *Resolver) Lookup(instance, service, domain string, entries chan<- *Serv
 
 // defaultParams is used to return a default set of QueryParam's
 func defaultParams(service string) *LookupParams {
-	return NewLookupParams("", service, "local", make(chan *ServiceEntry))
+	return NewLookupParams("", service, "local", make(chan *ServiceEntry), make(chan *BonjourQuestion))
 }
 
 // Client structure incapsulates both IPv4/IPv6 UDP connections
@@ -134,7 +132,8 @@ func newClient(iface *net.Interface) (*client, error) {
 }
 
 // Start listeners and waits for the shutdown signal from exit channel
-func (c *client) mainloop(params *LookupParams) {
+func (c *client) mainloop(params *LookupParams){
+	fmt.Println("mainloop")
 	// start listening for responses
 	msgCh := make(chan *dns.Msg, 32)
 	if c.ipv4conn != nil {
@@ -152,6 +151,10 @@ func (c *client) mainloop(params *LookupParams) {
 		case <-c.closedCh:
 			c.shutdown()
 		case msg := <-msgCh:
+			if len(msg.Question) != 0 {
+				params.Questions <- &BonjourQuestion{msg.Question}
+				continue
+			}
 			entries = make(map[string]*ServiceEntry)
 			sections := append(msg.Answer, msg.Ns...)
 			sections = append(sections, msg.Extra...)
@@ -264,6 +267,7 @@ func (c *client) recv(l *net.UDPConn, msgCh chan *dns.Msg) {
 	for !c.closed {
 		n, _, err := l.ReadFrom(buf)
 		if err != nil {
+			fmt.Println("recv nil = " , err)
 			continue
 		}
 		msg := new(dns.Msg)

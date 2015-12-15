@@ -10,6 +10,42 @@ Detailed documentation: [![GoDoc](https://godoc.org/github.com/oleksandr/bonjour
 
 ##Browsing available services in your local network
 
+MySelf example:
+```
+package main
+
+import (
+    "log"
+    "os"
+		"fmt"
+
+    "github.com/yulianghsueh/bonjour"
+)
+
+var results = make(chan *bonjour.BonjourQuestion)
+
+func main() {
+    resolver, err := bonjour.NewResolver(nil)
+    if err != nil {
+        log.Println("Failed to initialize resolver:", err.Error())
+        os.Exit(1)
+    }
+
+		err = resolver.Browse("._tcp", "local.", results)
+		go func() {
+			for{
+				fmt.Println("start")
+				if err != nil {
+		        log.Println("Failed to browse:", err.Error())
+		    }
+				rl := <- results
+				fmt.Println("rl = " , rl)
+			}
+		}()
+
+		select{}
+}
+```
 Here is an example how to browse services by their type:
 
 ```

@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/miekg/dns"
+	"github.com/yulianghsueh/dns"
 	"golang.org/x/net/ipv4"
 	"golang.org/x/net/ipv6"
 )

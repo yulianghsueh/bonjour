@@ -61,13 +61,15 @@ func NewServiceRecord(instance, service, domain string) *ServiceRecord {
 type LookupParams struct {
 	ServiceRecord
 	Entries chan<- *ServiceEntry // Entries Channel
+	Questions chan<- *BonjourQuestion // Entries Channel
 }
 
 // Constructs a LookupParams structure by given arguments
-func NewLookupParams(instance, service, domain string, entries chan<- *ServiceEntry) *LookupParams {
+func NewLookupParams(instance, service, domain string, entries chan<- *ServiceEntry , questions chan <-*BonjourQuestion) *LookupParams {
 	return &LookupParams{
 		*NewServiceRecord(instance, service, domain),
 		entries,
+		questions,
 	}
 }
 
