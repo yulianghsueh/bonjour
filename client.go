@@ -271,12 +271,12 @@ func (c *client) recv(l *net.UDPConn, msgCh chan <-*BonjourQuestion) {
 		}
 		msg := new(dns.Msg)
 		if err := msg.Unpack(buf[:n]); err != nil {
-			log.Printf("[ERR] mdns: Failed to unpack packet: %v", err)
+			//log.Printf("[ERR] mdns: Failed to unpack packet: %v", err)
 			continue
 		}
 		
 		if len(msg.Question) == 0 {
-			fmt.Println("msg.Question is empty")
+			//fmt.Println("msg.Question is empty")
 			continue
 		}
 		select {
