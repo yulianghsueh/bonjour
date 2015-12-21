@@ -263,7 +263,6 @@ func (c *client) recv(l *net.UDPConn, msgCh chan <-*BonjourQuestion) {
 	}
 
 	buf := make([]byte, 65536)
-	count := 0 
 	for !c.closed {
 		n, _, err := l.ReadFrom(buf)
 		if err != nil {
@@ -271,9 +270,6 @@ func (c *client) recv(l *net.UDPConn, msgCh chan <-*BonjourQuestion) {
 			continue
 		}
 		msg := new(dns.Msg)
-		fmt.Println("ReadFrom count : " , count)
-		count++
-		fmt.Println("ReadFrom msg =  " , msg)
 		if err := msg.Unpack(buf[:n]); err != nil {
 			log.Printf("[ERR] mdns: Failed to unpack packet: %v", err)
 			continue
