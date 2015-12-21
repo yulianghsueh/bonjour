@@ -32,14 +32,10 @@ func NewResolver(iface *net.Interface) (*Resolver, error) {
 }
 
 // Browse for all services of a fiven type in a given domain
-func (r *Resolver) Browse(service, domain string, questions chan<- *BonjourQuestion) error {
-	params := defaultParams(service)
-	if domain != "" {
-		params.Domain = domain
+func (r *Resolver) Browse(questionsCh chan<- *BonjourQuestion) error {
+	if r.c.ipv4conn != nil {
+		go r.c.recv(r.c.ipv4conn, questionsCh)
 	}
-	params.Questions = questions
-
-	go r.c.mainloop(params)
 
 	return nil
 }
@@ -133,13 +129,14 @@ func newClient(iface *net.Interface) (*client, error) {
 
 // Start listeners and waits for the shutdown signal from exit channel
 func (c *client) mainloop(params *LookupParams){
+	fmt.Println("mainloop")
 	// start listening for responses
 	msgCh := make(chan *dns.Msg, 32)
 	if c.ipv4conn != nil {
-		go c.recv(c.ipv4conn, msgCh)
+		//go c.recv(c.ipv4conn, msgCh)
 	}
 	if c.ipv6conn != nil {
-		go c.recv(c.ipv6conn, msgCh)
+		//go c.recv(c.ipv6conn, msgCh)
 	}
 
 	// Iterate through channels from listeners goroutines
@@ -150,8 +147,9 @@ func (c *client) mainloop(params *LookupParams){
 		case <-c.closedCh:
 			c.shutdown()
 		case msg := <-msgCh:
+			fmt.Println("mainloop msg = " , msg)
 			if len(msg.Question) != 0 {
-				params.Questions <- &BonjourQuestion{msg.Question}
+				//params.Questions <- &BonjourQuestion{msg.Question}
 				continue
 			}
 			entries = make(map[string]*ServiceEntry)
@@ -239,6 +237,7 @@ func (c *client) mainloop(params *LookupParams){
 
 // Shutdown client will close currently open connections & channel
 func (c *client) shutdown() {
+	fmt.Println("shutdown")
 	c.closeLock.Lock()
 	defer c.closeLock.Unlock()
 
@@ -258,11 +257,13 @@ func (c *client) shutdown() {
 
 // Data receiving routine reads from connection, unpacks packets into dns.Msg
 // structures and sends them to a given msgCh channel
-func (c *client) recv(l *net.UDPConn, msgCh chan *dns.Msg) {
+func (c *client) recv(l *net.UDPConn, msgCh chan <-*BonjourQuestion) {
 	if l == nil {
 		return
 	}
+
 	buf := make([]byte, 65536)
+	count := 0 
 	for !c.closed {
 		n, _, err := l.ReadFrom(buf)
 		if err != nil {
@@ -270,14 +271,23 @@ func (c *client) recv(l *net.UDPConn, msgCh chan *dns.Msg) {
 			continue
 		}
 		msg := new(dns.Msg)
+		fmt.Println("ReadFrom count : " , count)
+		count++
+		fmt.Println("ReadFrom msg =  " , msg)
 		if err := msg.Unpack(buf[:n]); err != nil {
 			log.Printf("[ERR] mdns: Failed to unpack packet: %v", err)
 			continue
 		}
+		
+		if len(msg.Question) == 0 {
+			fmt.Println("msg.Question is empty")
+			continue
+		}
 		select {
-		case msgCh <- msg:
-		case <-c.closedCh:
-			return
+			case msgCh <- &BonjourQuestion{msg.Question}:
+			case <-c.closedCh:
+				fmt.Println("c.closedCh = " , c.closedCh)
+				return
 		}
 	}
 }
